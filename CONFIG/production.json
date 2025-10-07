@@ -1,0 +1,64 @@
+{
+  "environment": "production",
+  "server": {
+    "port": 3000,
+    "apiPort": 8000,
+    "pythonApiPort": 8001
+  },
+  "database": {
+    "postgres": {
+      "host": "${POSTGRES_HOST}",
+      "port": 5432,
+      "database": "ai_agent_system",
+      "pool": {
+        "min": 10,
+        "max": 50
+      },
+      "ssl": true
+    },
+    "mongodb": {
+      "uri": "${MONGODB_URI}"
+    },
+    "redis": {
+      "host": "${REDIS_HOST}",
+      "port": 6379,
+      "ttl": 7200,
+      "cluster": true
+    }
+  },
+  "ai": {
+    "defaultProvider": "nvidia",
+    "maxTokens": 4096,
+    "temperature": 0.7,
+    "streamEnabled": true,
+    "cachingEnabled": true,
+    "loadBalancing": true,
+    "failover": true
+  },
+  "security": {
+    "jwtExpiresIn": "12h",
+    "bcryptRounds": 12,
+    "rateLimitWindow": 60000,
+    "rateLimitMaxRequests": 50,
+    "corsOrigins": ["https://yourdomain.com"],
+    "helmetEnabled": true
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "colorize": false,
+    "syslog": true
+  },
+  "monitoring": {
+    "prometheus": true,
+    "grafana": true,
+    "alerting": true
+  },
+  "features": {
+    "autoScaling": true,
+    "selfHealing": true,
+    "multiAgent": true,
+    "knowledgeGraph": true,
+    "predictiveMaintenance": true
+  }
+}

@@ -1,0 +1,57 @@
+name: 🚀 CD Production Pipeline
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+
+jobs:
+  deploy:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+      - name: Create namespace
+        run: |
+          kubectl apply -f INFRASTRUCTURE-AS-CODE/kubernetes/namespaces/production.yaml
+
+      - name: Apply secrets
+        run: |
+          kubectl apply -f INFRASTRUCTURE-AS-CODE/kubernetes/secrets/
+
+      - name: Deploy services
+        run: |
+          kubectl apply -f INFRASTRUCTURE-AS-CODE/kubernetes/deployments/
+          kubectl apply -f INFRASTRUCTURE-AS-CODE/kubernetes/services/
+          kubectl apply -f INFRASTRUCTURE-AS-CODE/kubernetes/hpa/
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/ai-engine -n ai-agent-system
+          kubectl rollout status deployment/api-gateway -n ai-agent-system
+
+      - name: Run health checks
+        run: |
+          kubectl get pods -n ai-agent-system
+          kubectl get services -n ai-agent-system
+
+      - name: Notify deployment
+        if: success()
+        run: echo "✅ Deployment to production successful!"
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          kubectl rollout undo deployment/ai-engine -n ai-agent-system
+          kubectl rollout undo deployment/api-gateway -n ai-agent-system
+          echo "❌ Deployment failed, rolling back..."

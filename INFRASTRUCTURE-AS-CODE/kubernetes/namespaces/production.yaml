@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-agent-system
+  labels:
+    name: ai-agent-system
+    environment: production

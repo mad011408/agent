@@ -1,0 +1,151 @@
+version: '3.8'
+
+services:
+  # ===================================
+  # FRONTEND
+  # ===================================
+  frontend:
+    build:
+      context: ./FRONTEND-ECOSYSTEM/ai-powered-ui
+      dockerfile: ../../INFRASTRUCTURE-AS-CODE/docker/Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api
+    depends_on:
+      - api-gateway
+    networks:
+      - ai-agent-network
+
+  # ===================================
+  # API GATEWAY
+  # ===================================
+  api-gateway:
+    build:
+      context: ./BACKEND-MICROSERVICES-ECOSYSTEM/api-gateway-service
+      dockerfile: ../../INFRASTRUCTURE-AS-CODE/docker/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    environment:
+      - NODE_ENV=production
+      - API_PORT=8000
+      - PYTHON_API_PORT=8001
+      - CORS_ORIGIN=http://localhost:3000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+      - ai-engine
+    networks:
+      - ai-agent-network
+
+  # ===================================
+  # AI ENGINE (Python/FastAPI)
+  # ===================================
+  ai-engine:
+    build:
+      context: ./AI-ML-DEEP-LEARNING-ENGINE
+      dockerfile: ../INFRASTRUCTURE-AS-CODE/docker/Dockerfile.ai-engine
+    ports:
+      - "8001:8001"
+    environment:
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - NVIDIA_BASE_URL=${NVIDIA_BASE_URL}
+      - SAMBANOVA_API_KEY=${SAMBANOVA_API_KEY}
+      - SAMBANOVA_BASE_URL=${SAMBANOVA_BASE_URL}
+      - CEREBRAS_API_KEY=${CEREBRAS_API_KEY}
+      - CEREBRAS_BASE_URL=${CEREBRAS_BASE_URL}
+      - DEFAULT_AI_PROVIDER=nvidia
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+      - postgres
+      - mongodb
+    networks:
+      - ai-agent-network
+    volumes:
+      - ai-models:/app/models
+
+  # ===================================
+  # DATABASES
+  # ===================================
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=ai_agent_user
+      - POSTGRES_PASSWORD=secure_password_here
+      - POSTGRES_DB=ai_agent_system
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./ADVANCED-DATABASES/postgresql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ai-agent-network
+
+  mongodb:
+    image: mongo:7
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=secure_password_here
+      - MONGO_INITDB_DATABASE=ai_agent_system
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - ai-agent-network
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - ai-agent-network
+
+  # ===================================
+  # MONITORING
+  # ===================================
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./MONITORING-OBSERVABILITY/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - ai-agent-network
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./MONITORING-OBSERVABILITY/grafana/dashboards:/etc/grafana/provisioning/dashboards
+    depends_on:
+      - prometheus
+    networks:
+      - ai-agent-network
+
+networks:
+  ai-agent-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  mongodb-data:
+  redis-data:
+  ai-models:
+  prometheus-data:
+  grafana-data:
